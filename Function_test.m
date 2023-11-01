@@ -15,7 +15,7 @@ EX=LHD(XL,XU,5000);
 EY=callobj(problem.f,EX); 
 
 %% Ordinary Kriging
-krig1=buildKRG(S,Y);   %利用降维的点进行Kriging建模
+krig1=buildKRG(S,Y); 
 %% predicted values
 K= predictor(EX, krig1);
 %% The evaluation index of the Kriging model 
