@@ -1,11 +1,12 @@
 # Introduction
-This is the code for the paper 'Theta-regularized Kriging: Modeling and Algorithms', a regularized Kriging model that penalizes the hyperparameter $\theta$ in the Gaussian stochastic process.
+This is the code for the paper "Theta-regularized Kriging: Modeling and Algorithms", a regularized Kriging model that penalizes the hyperparameter $\theta$ in the Gaussian stochastic process.
 ![image](https://github.com/xuelin-xie/Regularized-Kriging/blob/main/TRK_equation.png)
 
 # Contents
 The function files and all associated code for the Theta-Regularized Kriging (TRK) model have been compressed into the file "Code of TRK.zip." The main contents include the code for the TRK model and the GSCV algorithm.
 
 The flowchart illustrating the framework of the TRK model is presented below.
+
 ![image](https://github.com/xuelin-xie/Regularized-Kriging/blob/main/TRK.png)
 
 # How to Cite
