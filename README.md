@@ -12,7 +12,8 @@ The flowchart illustrating the framework of the TRK model is presented below.
 # How to Cite
 If you find this code or our work helpful, we would really appreciate a citation to our paper. Thank you!
 
-Paper citation: 
+Paper citation:
+
 Xuelin Xie, Xiliang Lu. Theta-regularized Kriging: Modelling and Algorithms. Appl. Math. Model., 2024, 136: 115627. https://doi.org/10.1016/j.apm.2024.07.034
 
 ```bibtex
