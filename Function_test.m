@@ -1,15 +1,28 @@
 clc
 clear;
+addpath(genpath(pwd));
+
 setdemorandstream(pi);
 problem.f=@copeak; % Test functions // copeak/ langermann/ rastrigin/ morcaf95a/ Sphere/ rothyp/ Tridd / Schwefel/ stybtang....
 [XL,XU]=copeak_bound();
 bounds=[XL;XU];
 dim=size(bounds,2); 
 pointnum=60;   %60/ 90
+n_repeats=10;
 
 %% Copyright: Xuelin Xie (xl.xie@whu.edu.cn)
 
-for i=1:10
+% Predefined variables
+[UR2, URMSE1, UMAE1] = deal(zeros(1,n_repeats));
+[TRLR2, TRRMSE2, TRMAE2] = deal(zeros(1,n_repeats));
+[TRRR2, TRRMSE3, TRMAE3] = deal(zeros(1,n_repeats));
+[TRER2, TRRMSE4, TRMAE4] = deal(zeros(1,n_repeats));
+[PBLR2, PBRMSE2, PBMAE2] = deal(zeros(1,n_repeats));
+[PBRR2, PBRMSE3, PBMAE3] = deal(zeros(1,n_repeats));
+[PBER2, PBRMSE4, PBMAE4] = deal(zeros(1,n_repeats));
+[t1,t2,t3,t4,t5,t6,t7] = deal(zeros(1,n_repeats));
+
+for i=1:n_repeats
 %% Sampling and evaluation points
 S=LHD(XL,XU,pointnum); 
 Y=callobj(problem.f,S);
@@ -17,148 +30,165 @@ EX=LHD(XL,XU,5000);
 EY=callobj(problem.f,EX); 
 
 %% Finding the optimal regularization parameters
-choose = 2;  % (1: Manual  adjustment; 2: GSCV Method) 
-%%%%%%  Notice: You can choose one or the other of the two methods %%%%%%%%
+choose = 1;  % (1: Manual adjustment; 2: GSCV Method)
 if choose==1
-    %%% Method 1: Manual  adjustment (Extremely fast, but every time it needs to be manually adjusted)  
-    % TR-LK
-    TR_bestlambda=3162;
-    % TR-RK
-    TR_bestmu=316;
-    % TR-EK
-    TR_bestalpha=0.2;
-    TR_bestgamma=3162;
-    % PB-LK
-    PB_bestlambda=3162;
-    % PB-RK
-    PB_bestmu=0.0316;
-    % PB-EK
-    PB_bestalpha=0.7;
-    PB_bestgamma=1000;
+    %%%% !!!! Notice: copeak function best paramaters, Other function parameters need to be readjusted. %%%% 
+    % TR-LK, TR-RK, TR-EK
+    TR_bestlambda=3162; TR_bestmu=316;
+    TR_bestalpha=0.2; TR_bestgamma=3162;
+    % PB-LK, PB-RK, PB-EK
+    PB_bestlambda=3162; PB_bestmu=0.0316;
+    PB_bestalpha=0.7; PB_bestgamma=1000;
 else
-    %%% Method 2: GSCV (Slow, not recommended for high dimensions)
-    % TR-LK
-    TR_bestlambda=OptRPL(S,Y);
-    % TR-RK
-    TR_bestmu=OptRPR(S,Y);
-    % TR-EK
-    [CVmse,TR_bestalpha,TR_bestgamma] = EPTKGridSearch(S,Y);
-    % PB-LK
-    PB_bestlambda=OpbRPL(S,Y);
-    % PB-RK
-    PB_bestmu=OpbRPR(S,Y);
-    % PB-EK
-    [CVmse,PB_bestalpha,PB_bestgamma] = EPBKGridSearch(S,Y);
+    TR_bestlambda=OptRPL(S,Y); TR_bestmu=OptRPR(S,Y);
+    [~,TR_bestalpha,TR_bestgamma] = EPTKGridSearch(S,Y);
+    PB_bestlambda=OpbRPL(S,Y); PB_bestmu=OpbRPR(S,Y);
+    [~,PB_bestalpha,PB_bestgamma] = EPBKGridSearch(S,Y);
 end
 
 %% UK
-tic
-krig1=buildKRG(S,Y);
-toc1=toc;
-t1(i)=sum(toc1);
-% predicted values
+tic; krig1=buildKRG(S,Y); t1(i)=toc;
 UK= predictor(EX, krig1);
-% The evaluation index of the Kriging model 
-UR2(i)=1-sum((EY -UK).*(EY-UK)) /sum((EY-mean(EY)).*(EY-mean(EY)));
-URMSE1(i)=sqrt(sum((EY -UK).*(EY -UK)) /size(EY,1));
-UMAE1(i)=sum(abs(EY -UK))/size(EY,1);
-
+UR2(i)=1-sum((EY-UK).^2)/sum((EY-mean(EY)).^2);
+URMSE1(i)=sqrt(mean((EY-UK).^2));
+UMAE1(i)=mean(abs(EY-UK));
 
 %% TR-LK
-% bulid the model
-tic
-krig2=buildKRGLPeT(S,Y,TR_bestlambda); 
-toc2=toc;
-t2(i)=sum(toc2);
-% predicted values
+tic; krig2=buildKRGLPeT(S,Y,TR_bestlambda); t2(i)=toc;
 TRLK= predictor(EX, krig2);
-% The evaluation index of the LK model
-TRLR2(i)=1-sum((EY -TRLK).*(EY-TRLK)) /sum((EY-mean(EY)).*(EY-mean(EY)));
-TRRMSE2(i)=sqrt(sum((EY -TRLK).*(EY -TRLK)) /size(EY,1));
-TRMAE2(i)=sum(abs(EY -TRLK))/size(EY,1);
+TRLR2(i)=1-sum((EY-TRLK).^2)/sum((EY-mean(EY)).^2);
+TRRMSE2(i)=sqrt(mean((EY-TRLK).^2));
+TRMAE2(i)=mean(abs(EY-TRLK));
 
 %% TR-RK
-% bulid the model
-tic
-krig3=buildKRGRPeT(S,Y,TR_bestmu);
-toc3=toc;
-t3(i)=sum(toc3);
-% predicted values
+tic; krig3=buildKRGRPeT(S,Y,TR_bestmu); t3(i)=toc;
 TRRK= predictor(EX, krig3);
-% The evaluation index of the RK model
-TRRR2(i)=1-sum((EY -TRRK).*(EY-TRRK)) /sum((EY-mean(EY)).*(EY-mean(EY)));
-TRRMSE3(i)=sqrt(sum((EY -TRRK).*(EY -TRRK)) /size(EY,1));
-TRMAE3(i)=sum(abs(EY -TRRK))/size(EY,1);
+TRRR2(i)=1-sum((EY-TRRK).^2)/sum((EY-mean(EY)).^2);
+TRRMSE3(i)=sqrt(mean((EY-TRRK).^2));
+TRMAE3(i)=mean(abs(EY-TRRK));
 
 %% TR-EK
-% bulid the model
-tic
-krig4=buildKRGEPeT(S,Y,TR_bestalpha,TR_bestgamma);
-toc4=toc;
-t4(i)=sum(toc4);
-% predicted values
+tic; krig4=buildKRGEPeT(S,Y,TR_bestalpha,TR_bestgamma); t4(i)=toc;
 EK= predictor(EX, krig4);
-% The evaluation index of the EK model
-TRER2(i)=1-sum((EY -EK).*(EY-EK)) /sum((EY-mean(EY)).*(EY-mean(EY)));
-TRRMSE4(i)=sqrt(sum((EY -EK).*(EY -EK)) /size(EY,1));
-TRMAE4(i)=sum(abs(EY -EK))/size(EY,1);
+TRER2(i)=1-sum((EY-EK).^2)/sum((EY-mean(EY)).^2);
+TRRMSE4(i)=sqrt(mean((EY-EK).^2));
+TRMAE4(i)=mean(abs(EY-EK));
 
 %% PB-LK
-% bulid the model
-tic
-krig5=buildKRGLPeB(S,Y,PB_bestlambda); 
-toc5=toc;
-t5(i)=sum(toc5);
-% predicted values
+tic; krig5=buildKRGLPeB(S,Y,PB_bestlambda); t5(i)=toc;
 PBLK= predictor(EX, krig5);
-% The evaluation index of the LK model
-PBLR2(i)=1-sum((EY -PBLK).*(EY-PBLK)) /sum((EY-mean(EY)).*(EY-mean(EY)));
-PBRMSE2(i)=sqrt(sum((EY -PBLK).*(EY -PBLK)) /size(EY,1));
-PBMAE2(i)=sum(abs(EY -PBLK))/size(EY,1);
+PBLR2(i)=1-sum((EY-PBLK).^2)/sum((EY-mean(EY)).^2);
+PBRMSE2(i)=sqrt(mean((EY-PBLK).^2));
+PBMAE2(i)=mean(abs(EY-PBLK));
 
 %% PB-RK
-% bulid the model
-tic
-krig6=buildKRGRPeB(S,Y,PB_bestmu);
-toc6=toc;
-t6(i)=sum(toc6);
-% predicted values
+tic; krig6=buildKRGRPeB(S,Y,PB_bestmu); t6(i)=toc;
 PBRK= predictor(EX, krig6);
-% The evaluation index of the RK model
-PBRR2(i)=1-sum((EY -PBRK).*(EY-PBRK)) /sum((EY-mean(EY)).*(EY-mean(EY)));
-PBRMSE3(i)=sqrt(sum((EY -PBRK).*(EY -PBRK)) /size(EY,1));
-PBMAE3(i)=sum(abs(EY -PBRK))/size(EY,1);
+PBRR2(i)=1-sum((EY-PBRK).^2)/sum((EY-mean(EY)).^2);
+PBRMSE3(i)=sqrt(mean((EY-PBRK).^2));
+PBMAE3(i)=mean(abs(EY-PBRK));
 
 %% PB-EK
-% build the model
-tic
-krig7=buildKRGEPeB(S,Y,PB_bestalpha,PB_bestgamma);
-toc7=toc;
-t7(i)=sum(toc7);
-% predicted values
+tic; krig7=buildKRGEPeB(S,Y,PB_bestalpha,PB_bestgamma); t7(i)=toc;
 PBEK= predictor(EX, krig7);
-% The evaluation index of the EK model
-PBER2(i)=1-sum((EY -PBEK).*(EY-PBEK)) /sum((EY-mean(EY)).*(EY-mean(EY)));
-PBRMSE4(i)=sqrt(sum((EY -PBEK).*(EY -PBEK)) /size(EY,1));
-PBMAE4(i)=sum(abs(EY -PBEK))/size(EY,1);
+PBER2(i)=1-sum((EY-PBEK).^2)/sum((EY-mean(EY)).^2);
+PBRMSE4(i)=sqrt(mean((EY-PBEK).^2));
+PBMAE4(i)=mean(abs(EY-PBEK));
 
 end
 
-UR2,TRLR2,TRRR2,TRER2,PBLR2,PBRR2,PBER2
-URMSE1,TRRMSE2,TRRMSE3,TRRMSE4,PBRMSE2,PBRMSE3,PBRMSE4
-UMAE1,TRMAE2,TRMAE3,TRMAE4,PBMAE2,PBMAE3,PBMAE4
+%% ==================== Results Display ====================
+% Method Name
+method_names = {'UK', 'TR-LK', 'TR-RK', 'TR-EK', 'PB-LK', 'PB-RK', 'PB-EK'};
 
-Means=[mean(UR2),mean(TRLR2),mean(TRRR2),mean(TRER2),mean(PBLR2),mean(PBRR2),mean(PBER2);
-    mean(URMSE1),mean(TRRMSE2),mean(TRRMSE3),mean(TRRMSE4),mean(PBRMSE2),mean(PBRMSE3),mean(PBRMSE4);...
-    mean(UMAE1),mean(TRMAE2),mean(TRMAE3),mean(TRMAE4),mean(PBMAE2),mean(PBMAE3),mean(PBMAE4)]
+% Method Results
+R2_results = [UR2; TRLR2; TRRR2; TRER2; PBLR2; PBRR2; PBER2];
+RMSE_results = [URMSE1; TRRMSE2; TRRMSE3; TRRMSE4; PBRMSE2; PBRMSE3; PBRMSE4];
+MAE_results = [UMAE1; TRMAE2; TRMAE3; TRMAE4; PBMAE2; PBMAE3; PBMAE4];
+time_results = [t1; t2; t3; t4; t5; t6; t7];
 
-Std=[std(UR2),std(TRLR2),std(TRRR2),std(TRER2),std(PBLR2),std(PBRR2),std(PBER2);
-    std(URMSE1),std(TRRMSE2),std(TRRMSE3),std(TRRMSE4),std(PBRMSE2),std(PBRMSE3),std(PBRMSE4);...
-    std(UMAE1),std(TRMAE2),std(TRMAE3),std(TRMAE4),std(PBMAE2),std(PBMAE3),std(PBMAE4)]
+% Mean and Standard Deviation
+R2_mean = mean(R2_results,2);
+R2_std = std(R2_results,0,2);
+RMSE_mean = mean(RMSE_results,2);
+RMSE_std = std(RMSE_results,0,2);
+MAE_mean = mean(MAE_results,2);
+MAE_std = std(MAE_results,0,2);
+time_mean = mean(time_results,2);
+time_std = std(time_results,0,2);
 
-%% CPU time
-time=[mean(t1),mean(t2),mean(t3),mean(t4),mean(t5),mean(t6),mean(t7)]
+%% Results Table
+fprintf('\n');
+fprintf('================================================================================\n');
+fprintf('                         Kriging Model Comparison Results\n');
+fprintf('================================================================================\n');
+fprintf('Test Function: copeak  |  Sample Size: %d  |  Repeats: %d\n', pointnum, n_repeats);
+fprintf('================================================================================\n\n');
 
+% R² Results
+fprintf('【R² (Coefficient of Determination) - Higher is Better】\n');
+fprintf('--------------------------------------------------------------------\n');
+fprintf('%-10s | %12s | %12s | %12s\n', 'Method', 'Mean', 'Std', 'Mean±Std');
+fprintf('--------------------------------------------------------------------\n');
+for i = 1:7
+    fprintf('%-10s | %12.6f | %12.6f | %.6f ± %.6f\n', ...
+        method_names{i}, R2_mean(i), R2_std(i), R2_mean(i), R2_std(i));
+end
+fprintf('--------------------------------------------------------------------\n\n');
+
+% RMSE Results
+fprintf('【RMSE (Root Mean Square Error) - Lower is Better】\n');
+fprintf('--------------------------------------------------------------------\n');
+fprintf('%-10s | %12s | %12s | %12s\n', 'Method', 'Mean', 'Std', 'Mean±Std');
+fprintf('--------------------------------------------------------------------\n');
+for i = 1:7
+    fprintf('%-10s | %12.6e | %12.6e | %.6e ± %.6e\n', ...
+        method_names{i}, RMSE_mean(i), RMSE_std(i), RMSE_mean(i), RMSE_std(i));
+end
+fprintf('--------------------------------------------------------------------\n\n');
+
+% MAE Results
+fprintf('【MAE (Mean Absolute Error) - Lower is Better】\n');
+fprintf('--------------------------------------------------------------------\n');
+fprintf('%-10s | %12s | %12s | %12s\n', 'Method', 'Mean', 'Std', 'Mean±Std');
+fprintf('--------------------------------------------------------------------\n');
+for i = 1:7
+    fprintf('%-10s | %12.6e | %12.6e | %.6e ± %.6e\n', ...
+        method_names{i}, MAE_mean(i), MAE_std(i), MAE_mean(i), MAE_std(i));
+end
+fprintf('--------------------------------------------------------------------\n\n');
+
+% CPU Time Results
+fprintf('【CPU Time (seconds) - Lower is Better】\n');
+fprintf('--------------------------------------------------------------------\n');
+fprintf('%-10s | %12s | %12s | %12s\n', 'Method', 'Mean', 'Std', 'Mean±Std');
+fprintf('--------------------------------------------------------------------\n');
+for i = 1:7
+    fprintf('%-10s | %12.6f | %12.6f | %.6f ± %.6f\n', ...
+        method_names{i}, time_mean(i), time_std(i), time_mean(i), time_std(i));
+end
+fprintf('--------------------------------------------------------------------\n');
+
+% Find the optimal method
+[~, best_R2_idx] = max(R2_mean);
+[~, best_RMSE_idx] = min(RMSE_mean);
+[~, best_MAE_idx] = min(MAE_mean);
+[~, best_time_idx] = min(time_mean);
+
+fprintf('\n【Best Performance Summary】\n');
+fprintf('================================================================================\n');
+fprintf('✓ Best R²:    %s (%.6f)\n', method_names{best_R2_idx}, R2_mean(best_R2_idx));
+fprintf('✓ Best RMSE:  %s (%.6e)\n', method_names{best_RMSE_idx}, RMSE_mean(best_RMSE_idx));
+fprintf('✓ Best MAE:   %s (%.6e)\n', method_names{best_MAE_idx}, MAE_mean(best_MAE_idx));
+fprintf('✓ Best Speed: %s (%.6f sec)\n', method_names{best_time_idx}, time_mean(best_time_idx));
+fprintf('================================================================================\n');
+
+
+%% Interpolated Image (Applicable only to 1 or 2 dimensions)
+plot_kriging(krig1, problem, bounds, S, Y, 'UK', 500);
+plot_kriging(krig2, problem, bounds, S, Y, 'TR-LK', 500);
+
+%% Save Results (Optional)
 % xlswrite('copeak_60.xlsx',Means,1);
 % xlswrite('copeak_60.xlsx',Std,2);
 % xlswrite('copeak_60.xlsx',time,3);
